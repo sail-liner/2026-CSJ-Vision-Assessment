@@ -1,0 +1,47 @@
+# ROS 2 / colcon
+build/
+install/
+log/
+
+# C/C++
+*.o
+*.obj
+*.so
+*.a
+*.out
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Runtime output and temporary files
+*.log
+*.tmp
+*.bag
+*.db3
+results/
+output/
+
+# Large local data
+raw_data/
+datasets/
