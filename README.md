@@ -1,65 +1,112 @@
 # 2026 川山甲视觉组正式队员考核
 
-## 项目简介
+方向一：三维视觉与增强现实（ROS 2 + AprilTag AR）。
 
-本仓库用于完成 **2026 川山甲战队视觉组正式队员考核——方向一：三维视觉与增强现实**。
+本项目在 Ubuntu 22.04 与 ROS 2 Humble 下，使用 USB 单目摄像头完成
+AprilTag 36h11 检测、相机标定、六维位姿估计、Pose/TF 发布、RViz2
+三维可视化，以及具有固定三维偏移的悬浮立方体 AR 投影。
 
-项目将按照“环境准备 → 基础功能实现 → 系统联调 → 效果验证 → 文档与演示整理”的顺序推进，并持续保留开发记录与阶段性成果。
+## 完成内容
 
-## 当前状态
+- AprilTag ID、P0–P3 四角点、中心点与三维坐标轴绘制
+- 基于标定内参和 `SOLVEPNP_IPPE_SQUARE` 的六维位姿估计
+- 发布 `/apriltag/pose`、`/tf` 与 `/apriltag/markers`
+- RViz2 中显示相机模型、标签模型、TF 坐标系和 MarkerArray
+- 在 AprilTag 坐标系中绘制固定偏移的 AR 立方体
+- 标准 ROS 图像话题模式与低延迟摄像头直连模式
+- 固定曝光、MJPG、低缓冲与位姿滤波优化
+- 15 cm、18 cm、20 cm 测距误差验证
 
-- [x] 创建公开 GitHub 仓库
-- [x] 建立基础仓库结构
-- [x] 添加开发记录模板
-- [x] 添加通用 `.gitignore`
-- [ ] 明确最终技术路线与运行环境
-- [ ] 完成核心功能开发
-- [ ] 完成系统联调与测试
-- [ ] 整理演示材料与最终文档
+## 最终环境与参数
 
-## 计划使用的技术
-
-最终技术路线将在环境搭建阶段确认，预计涉及：
-
-- ROS 2
-- OpenCV
-- AprilTag
-- C++ 或 Python
-- Git / GitHub
-
-> 当前尚未锁定 C++ 或 Python，因此仓库暂时采用兼容两种语言及 ROS 2 工作区的结构。
+| 项目 | 最终配置 |
+| --- | --- |
+| 操作系统 | Ubuntu 22.04 |
+| ROS | ROS 2 Humble |
+| Python | Python 3.10 |
+| 图像库 | OpenCV（含 `aruco`）、NumPy |
+| 摄像头 | `/dev/video0`，V4L2 + MJPG |
+| 图像尺寸 | 640×480，目标 30 FPS |
+| 标签 | AprilTag 36h11，ID 0 |
+| 标签边长 | 0.0575 m（外围正方形） |
+| 相机内参 | `fx=675.85100`、`fy=683.09268`、`cx=325.73900`、`cy=214.65946` |
+| 畸变系数 | `[0.181898, -0.521402, 0.005301, 0.005508, 0]` |
 
 ## 仓库结构
 
 ```text
-2026-CSJ-Vision-Assessment/
-├── README.md                  # 项目说明
-├── .gitignore                 # Git 忽略规则
-├── config/                    # 参数与配置文件
-├── docs/                      # 开发记录、说明文档
+.
+├── README.md
+├── docs/
 │   └── DEVELOPMENT_LOG.md
-├── launch/                    # ROS 2 启动文件
-├── media/                     # 演示图片、流程图、结果截图
-├── scripts/                   # 辅助脚本
-└── src/                       # 项目源代码
+└── src/
+    └── apriltag_ar/
+        ├── apriltag_ar/
+        │   ├── apriltag_detector.py
+        │   ├── apriltag_direct.py
+        │   └── camera_publisher.py
+        ├── config/
+        ├── launch/
+        ├── package.xml
+        └── setup.py
 ```
 
-## 开发原则
+## 构建
 
-1. 每完成一个可验证功能后再提交代码。
-2. 提交信息应说明本次修改内容，不使用无意义描述。
-3. 调试过程、问题原因和解决办法记录在 `docs/DEVELOPMENT_LOG.md`。
-4. 编译产物、缓存、日志和大型原始数据不提交到仓库。
-5. 最终提交前确保他人能够依据 README 复现运行流程。
+```bash
+git clone https://github.com/sail-liner/2026-CSJ-Vision-Assessment.git
+cd 2026-CSJ-Vision-Assessment
 
-## 运行方法
+source /opt/ros/humble/setup.bash
+colcon build --packages-select apriltag_ar
+source install/setup.bash
+```
 
-项目尚处于准备阶段。环境、依赖、编译命令和运行命令将在实际开发后补充。
+## 推荐运行方式
+
+最终演示采用摄像头直连模式，避免 ROS 图像链路排队造成的延迟：
+
+```bash
+ros2 launch apriltag_ar apriltag_direct.launch.py
+```
+
+也可以运行标准 ROS 图像话题模式：
+
+```bash
+ros2 launch apriltag_ar apriltag_demo.launch.py
+```
+
+查看处理后的画面：
+
+```bash
+rqt_image_view /apriltag/image
+```
+
+打开 RViz2：
+
+```bash
+rviz2 -d install/apriltag_ar/share/apriltag_ar/config/default.rviz
+```
+
+## ROS 输出
+
+- `/apriltag/image`：带检测与 AR 标注的图像
+- `/apriltag/pose`：`geometry_msgs/PoseStamped`
+- `/apriltag/markers`：`visualization_msgs/MarkerArray`
+- `/tf`：`camera_frame → apriltag_<id>`
+
+## 实验结果
+
+| 实际距离 | 测量距离 | 绝对误差 | 相对误差 |
+| ---: | ---: | ---: | ---: |
+| 15.00 cm | 15.05 cm | 0.05 cm | 0.36% |
+| 18.00 cm | 18.63 cm | 0.63 cm | 3.51% |
+| 20.00 cm | 20.30 cm | 0.30 cm | 1.51% |
+
+约 10 cm 时因摄像头最小对焦距离限制无法稳定识别，保留为失败案例。实际演示时，
+标签外围需要保留白色静区；纯黑背景会降低正面识别稳定性。
 
 ## 开发记录
 
-详细进度见：[docs/DEVELOPMENT_LOG.md](docs/DEVELOPMENT_LOG.md)
-
-## 仓库地址
-
-https://github.com/sail-liner/2026-CSJ-Vision-Assessment
+关键调试过程、技术路线变化与最终验证结果见
+[`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md)。
